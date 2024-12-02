@@ -21,6 +21,11 @@ A template to customize your scenario with our own data will be made available s
 
 Results are available on Zenodo at :
 
+## Dependencies
+
+ODYM (https://github.com/IndEcol/ODYM)
+
+
 ## Author
 Titouan Greffe (greffe.titouan@uqam.ca)
 
