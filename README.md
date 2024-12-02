@@ -17,7 +17,7 @@ The main WILMFlo 1.0 outputs are the following:
 - Yearly surplus and deficit of resources at the extraction stage
 - Yearly mining energy consumption for the 50 resources and 3 fossil fuels
 
-A template to customize your scenario with our own data will be made available soon.
+A template to customize your scenario with your own data will be made available soon.
 
 Results are available on Zenodo at :
 
