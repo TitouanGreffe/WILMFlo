@@ -51,12 +51,12 @@ class WILMFlo_world:
                                         index_col=0)
 
         else:
-            self.tec_tec_use_phase = pd.read_excel(self.in_folder_path + self.in_file,
-                                                   sheet_name="Tec_Tec_use_" + self.scenario_demand,
-                                                   index_col=0).fillna(0)
-            self.share_tec_tec = pd.read_excel(self.in_folder_path + self.in_file,
-                                               sheet_name="Share_Tec_Tec_" + self.scenario_prod,
-                                               index_col=0).fillna(0)
+            #self.tec_tec_use_phase = pd.read_excel(self.in_folder_path + self.in_file,
+            #                                       sheet_name="Tec_Tec_use_" + self.scenario_demand,
+            #                                       index_col=0).fillna(0)
+            #self.share_tec_tec = pd.read_excel(self.in_folder_path + self.in_file,
+            #                                   sheet_name="Share_Tec_Tec_" + self.scenario_prod,
+            #                                   index_col=0).fillna(0)
             self.demand = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Demand_" + self.scenario_demand,
                                         index_col=0)
 
@@ -74,25 +74,28 @@ class WILMFlo_world:
         self.materials = [i for i in list(self.lists.loc[:, "Material"].dropna()) if
                           i not in list(self.lists.loc[:, "No_Tec_Yet"].dropna())]
         self.all_products = list(self.lists.loc[:, "Technology"].dropna())
+        print("All products = ", self.all_products)
         self.intermediary_products = [i for i in list(self.lists.loc[:, "Material_and_Technology"].dropna()) if
                                            i in self.all_products] + [i for i in list(self.lists.loc[:, "Intermediate_technology"].dropna()) if i in self.all_products]
         self.products = [i for i in self.all_products if i not in self.intermediary_products]
+        print("Products only = ", self.products)
         self.final_technologies = [i for i in list(self.tec_services.index)[1:] if i in self.all_products]
+        print("self.final_technologies = ", self.final_technologies)
 
         self.services = list(self.lists.loc[:, "Service"].dropna())
 
         self.ts = 1
-        self.list_time = list(range(2022, 2800, self.ts))
+        self.list_time = list(range(2024, 2800, self.ts))
         start = 0
-        period = 82
+        period = 27
         self.time = self.list_time[start:start + period]
 
         self.av_BtH = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="av_BtH", index_col=0)
 
 
         self.capacity = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Capacity", index_col=0).fillna(0)
-        self.initial_stock = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Initial_stock",
-                                           index_col=0).fillna(0)
+        #self.initial_stock = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Initial_stock",
+        #                                   index_col=0).fillna(0)
 
         self.prod_rr = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Prod_RR", index_col=0).fillna(0)
 
@@ -107,11 +110,14 @@ class WILMFlo_world:
         self.in_use_rr = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="In_Use_RR", index_col=0).fillna(
             0)
 
+        self.tailings_waste_rock = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Tailings_rock", index_col=0).fillna(
+            0)
+
         ## Reserves-cost
         self.reserves_cost = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Reserves_cost", index_col=0)
 
-        self.initial_stock_time = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Initial_stock_time",
-                                                index_col=0)
+        #self.initial_stock_time = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Initial_stock_time",
+        #                                        index_col=0)
         self.outflow_init_stock_time = pd.read_excel(self.in_folder_path + self.in_file,
                                                      sheet_name="Outflow_init_stock_time",
                                                      index_col=0)
@@ -142,6 +148,10 @@ class WILMFlo_world:
         self.gap_reserves = pd.DataFrame(0,index=self.elements, columns=self.time,dtype=float)
 
         self.diss_prim_prod = pd.DataFrame(0,index=self.elements, columns=self.time,dtype=float)
+        self.diss_tailings = pd.DataFrame(0, index=self.elements, columns=self.time, dtype=float)
+        self.diss_waste_rock = pd.DataFrame(0, index=self.elements, columns=self.time, dtype=float)
+
+
         self.diss_yearly_total = pd.DataFrame(0,index=self.elements, columns=self.time,dtype=float)
 
         ## to store results of surplus and deficit when considering available byproduct-to-host ratios
@@ -216,12 +226,27 @@ class WILMFlo_world:
                                                self.always_value_ShareTec_Services(self.share_tec_services, f, s, t)*
                                                self.tec_services.loc[f,s]*
                                                self.demand.loc[s,t] for s in self.services for f in self.final_technologies])
-                #print("self.demand_stock_tec.loc[p,t] = ",self.demand_stock_tec.loc[p,t])
-                self.input_tec.loc[p,t] = max(0,sum([self.L_prod[t].loc[p,f]*
+                if p == "Food provisioning":
+                    self.input_tec.loc[p,t] = max(0,sum([self.L_prod[t].loc[p,f]*
+                                               self.always_value_ShareTec_Services(self.share_tec_services, f, s, t)*
+                                               self.tec_services.loc[f,s]*
+                                               self.demand.loc[s,t] for s in self.services for f in self.final_technologies]))
+                else:
+                    self.input_tec.loc[p,t] = max(0,sum([self.L_prod[t].loc[p,f]*
                                                self.always_value_ShareTec_Services(self.share_tec_services, f, s, t)*
                                                self.tec_services.loc[f,s]*
                                                (self.demand.loc[s,t]-self.demand.loc[s,t-self.ts]+ self.outflow_services.loc[s,t-self.ts]) for s in self.services for f in self.final_technologies]))
+                if p == "Food provisioning":
+                    s,f = "Food provisioning","Food provisioning"
+                    if t in self.time[1:15]:
+                        print("t = ",t)
+                        print("L_prod[t].loc[p,f] = ",self.L_prod[t].loc[p,f])
+                        print("share_tec_services = ",self.always_value_ShareTec_Services(self.share_tec_services, f, s, t))
+                        print("demand at t = ",self.demand.loc[s,t])
+                        print("outflow_services at t-1 = ",self.outflow_services.loc[s,t-self.ts])
+            
             end = time.time()
+            
             print("Time first loop = ", end-start)
             start = time.time()
             for m in self.materials:
@@ -229,7 +254,9 @@ class WILMFlo_world:
                     self.f_into_use_1.loc[(m,p),t] = self.always_value_Mat_Tec(self.mat_tec, m, p, t,col_amount_mat_tec)*self.input_tec.loc[p,t]+self.f_use_sorting.loc[(m,p),t-self.ts]
                     print("self.f_into_use_1.loc[(m,p),t] = ",self.f_into_use_1.loc[(m,p),t])
                     self.f_into_use_2.loc[(m, p), t] = self.always_value_Mat_Tec(self.mat_tec, m, p, t,col_amount_mat_tec)*sum(self.demand_stock_tec.loc[f,t]*self.L_use_phase[t].loc[p, f] for f in self.final_technologies)
+                    print("self.f_into_use_2.loc[(m,p),t] = ",self.f_into_use_2.loc[(m,p),t])
                     self.f_into_use_tot.loc[(m, p), t] = self.f_into_use_1.loc[(m,p),t]+self.f_into_use_2.loc[(m,p),t]
+                    print("self.f_into_use_tot.loc[(m,p),t] = ",self.f_into_use_tot.loc[(m,p),t])
                     self.f_use_sorting.loc[(m,p),t] = sum([self.RF_yearly(t,c,p)*self.f_into_use_tot.loc[(m, p), c] for c in self.time[:self.time.index(t)]])*self.always_value_m_p_rr(self.in_use_rr, m, p, "In_Use")
                     self.f_sorting_rec.loc[(m,p),t] = self.f_use_sorting.loc[(m,p),t]*self.always_value_m_p_rr(self.coll_sorting_rr, m, p, "Collection_sorting")
 
@@ -268,6 +295,9 @@ class WILMFlo_world:
                                                                                         self.diss_coll_sorting.loc[m, t] +
                                                                                         self.diss_remelting.loc[
                                                                                             m, t]) * self.always_value_elem_mat(self.elem_mat, b, m) for m in self.materials)
+            for e in self.elements:
+                self.diss_tailings.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Tailings"]
+                self.diss_waste_rock.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Waste rock"]
 
             for e in self.elements:
                 if (self.reserves_level0.loc[e, t - self.ts] >= self.f_ext.loc[e, t]):
@@ -332,7 +362,7 @@ class WILMFlo_world:
 
     def export_results(self):
         start = time.time()
-        with pd.ExcelWriter(self.output_folder + "Results_"+self.scenario_demand+"_"+self.scenario_prod+"_"+self.element+".xlsx") as writer:
+        with pd.ExcelWriter(self.output_folder + "Results_"+self.scenario_demand+"_"+self.scenario_prod+"_"+".xlsx") as writer:
             self.mining_cost.to_excel(writer,sheet_name = "mining_cost")
             self.f_ext_supply.to_excel(writer,sheet_name = "f_ext_supply")
             self.f_ext.to_excel(writer,sheet_name = "f_ext")
@@ -356,6 +386,8 @@ class WILMFlo_world:
             self.reserves_level3.to_excel(writer, sheet_name="reserves_level3")
             self.gap_reserves.to_excel(writer, sheet_name="gap_reserves")
             self.diss_prim_prod.to_excel(writer,sheet_name = "diss_prim_prod")
+            self.diss_tailings.to_excel(writer,sheet_name = "diss_tailings")
+            self.diss_waste_rock.to_excel(writer,sheet_name = "diss_waste_rock")
             self.diss_fab.to_excel(writer,sheet_name = "diss_fab")
             self.diss_in_use_products.to_excel(writer,sheet_name = "diss_in_use_products")
             self.diss_in_use.to_excel(writer,sheet_name = "diss_in_use")
@@ -445,7 +477,7 @@ class WILMFlo_world:
 
     def define_pertinent_tec(self):
         col_amount_mat_tec = "Mean amount (tons/Unit Technology)"
-        t = 2022
+        t = 2025
         for m in self.materials:
             self.pertinent_technologies[m] = set(p for p in self.products if self.always_value_Mat_Tec(self.mat_tec, m, p, t, col_amount_mat_tec) != 0)
 
@@ -456,19 +488,27 @@ class WILMFlo_world:
         '''
         self.L_prod is obtained using calc_L_matrix_prod function taking as input variable self.tec_tec_prod which data is stored 
         in tabsheet of self.in_file named "Tec_Tec_use_ + self.scenario_demand"
+        
+        Temporarily replaced self.scenario_demand by 'SSP2B_SSP2B' for study on Phosphorus
+        And replaced '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/' + 'SSP2B_SSP2B' + '_' + self.scenario_prod + '/L_prod/L_'
+        by '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_'
         '''
         for t in self.time:
-            self.L_prod[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/' + self.scenario_demand + '_' + self.scenario_prod + '/L_prod/L_' + str(t) + '.xlsx',
+            self.L_prod[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_' + str(t) + '.xlsx',
                                                    index_col=0)
     def read_L_matrix_with_yearly_use(self):
         self.L_use = {}
         '''
         self.L_use is obtained using calc_L_matrix_use function taking as input variable self.tec_tec_use_phase which data is stored 
         in tabsheet of self.in_file named "Tec_Tec_prod"
+        
+        Temporarily replaced self.scenario_demand by 'SSP2B_SSP2B' for study on Phosphorus
+        And replaced '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/'
+                                          + 'SSP2B_SSP2B' + '_' + self.scenario_prod + '/L_use/L_'
+        by '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_'
         '''
         for t in self.time:
-            self.L_use[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/'
-                                          + self.scenario_demand + '_' + self.scenario_prod + '/L_use/L_'
+            self.L_use[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_'
                                           + str(t) + '.xlsx', index_col=0)
 
     def get_L_matrix_use(self):
@@ -641,7 +681,7 @@ class WILMFlo_world:
             ## Here we set to 0 all negative values obtained after inversion (calculation residues after inversion)
             self.L_prod[t] = abs(self.L_prod[t].mask(self.L_prod[t] < 0).fillna(0))
             self.L_prod[t].to_excel(
-                '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/' + self.scenario_demand + '_' + self.scenario_prod + '/L_prod/L_' + str(
+                '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_' + str(
                     t) + '.xlsx')
 
     
@@ -665,7 +705,7 @@ class WILMFlo_world:
             ## Here we set to 0 all negative values obtained after inversion (calculation residues after inversion)
             self.L_use[t] = abs(self.L_use[t].mask(self.L_use[t] < 0).fillna(0))
             self.L_use[t].to_excel(
-                '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/' + self.scenario_demand + '_' + self.scenario_prod + '/L_use/L_' + str(
+                '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_' + str(
                     t) + '.xlsx')
 
     def solve_scenario(self):
