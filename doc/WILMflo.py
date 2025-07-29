@@ -3,7 +3,7 @@ import sys, os
 import numpy as np
 import pandas as pd
 import time
-path = "/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/modulefiles/ODYM-master/"
+path = "[path to ODYM-master/]"
 #path = "D:\Documents_D\Documents\PhD\AA_Articles\Articles\II_Operationalize_the_model\Code\AA_Others\ODYM_latest\ODYM-master\ODYM-master"
 sys.path.insert(0, os.path.join(path, 'odym', 'modules'))  # add ODYM module directory to system path, relative
 sys.path.insert(0, os.path.join(os.getcwd(), path, 'odym',
@@ -13,14 +13,14 @@ import dynamic_stock_model as dsm
 
 class WILMFlo_world:
 
-    def __init__(self,in_folder_path, in_file, scenario_demand, scenario_prod,output_folder,output_file):
+    def __init__(self,in_folder_path, in_file, scenario_demand, scenario_prod,output_folder, path_L_matrices):
 
         self.in_folder_path = in_folder_path
         self.in_file = in_file
         self.scenario_demand = scenario_demand
         self.scenario_prod = scenario_prod
         self.output_folder = output_folder
-        self.output_file = output_file
+        self.path_L_matrices = path_L_matrices
 
         self.pertinent_technologies = {}
 
@@ -85,9 +85,9 @@ class WILMFlo_world:
         self.services = list(self.lists.loc[:, "Service"].dropna())
 
         self.ts = 1
-        self.list_time = list(range(2024, 2800, self.ts))
+        self.list_time = list(range(2024, 2200, self.ts))
         start = 0
-        period = 27
+        period = 77
         self.time = self.list_time[start:start + period]
 
         self.av_BtH = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="av_BtH", index_col=0)
@@ -110,8 +110,8 @@ class WILMFlo_world:
         self.in_use_rr = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="In_Use_RR", index_col=0).fillna(
             0)
 
-        self.tailings_waste_rock = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Tailings_rock", index_col=0).fillna(
-            0)
+        #self.tailings_waste_rock = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Tailings_rock", index_col=0).fillna(
+        #   0)
 
         ## Reserves-cost
         self.reserves_cost = pd.read_excel(self.in_folder_path + self.in_file, sheet_name="Reserves_cost", index_col=0)
@@ -236,14 +236,7 @@ class WILMFlo_world:
                                                self.always_value_ShareTec_Services(self.share_tec_services, f, s, t)*
                                                self.tec_services.loc[f,s]*
                                                (self.demand.loc[s,t]-self.demand.loc[s,t-self.ts]+ self.outflow_services.loc[s,t-self.ts]) for s in self.services for f in self.final_technologies]))
-                if p == "Food provisioning":
-                    s,f = "Food provisioning","Food provisioning"
-                    if t in self.time[1:15]:
-                        print("t = ",t)
-                        print("L_prod[t].loc[p,f] = ",self.L_prod[t].loc[p,f])
-                        print("share_tec_services = ",self.always_value_ShareTec_Services(self.share_tec_services, f, s, t))
-                        print("demand at t = ",self.demand.loc[s,t])
-                        print("outflow_services at t-1 = ",self.outflow_services.loc[s,t-self.ts])
+
             
             end = time.time()
             
@@ -261,10 +254,14 @@ class WILMFlo_world:
                     self.f_sorting_rec.loc[(m,p),t] = self.f_use_sorting.loc[(m,p),t]*self.always_value_m_p_rr(self.coll_sorting_rr, m, p, "Collection_sorting")
 
                     self.f_fab_materials.loc[(m,p),t] = self.f_into_use_tot.loc[(m, p), t]/self.always_value_m_p_rr(self.fab_rr, m, p, "Fab")
-                    self.diss_in_use_products.loc[(m,p),t] = sum([self.RF_yearly(t,c,p)*self.f_into_use_tot.loc[(m, p), c] for c in self.time[:self.time.index(t)]])*(1-self.always_value_m_p_rr(self.in_use_rr, m, p, "In_Use"))
+
+                    if p in self.list_tec_short_lifetime:
+                        self.diss_in_use_products.loc[(m, p),t] = self.f_into_use_tot.loc[(m, p),t]*(1-self.always_value_m_p_rr(self.in_use_rr, m, p, "In_Use"))
+                    else:
+                        self.diss_in_use_products.loc[(m,p),t] = sum([self.RF_yearly(t,c,p)*self.f_into_use_tot.loc[(m, p), c] for c in self.time[:self.time.index(t)]])*(1-self.always_value_m_p_rr(self.in_use_rr, m, p, "In_Use"))
 
                 self.diss_fab.loc[m,t] = sum(self.f_fab_materials.loc[(m,p),t]*(1-self.always_value_m_p_rr(self.fab_rr, m, p, "Fab")) for p in self.pertinent_technologies[m])
-                self.diss_in_use.loc[m,t] = sum(sum([self.RF_yearly(t,c,p)*self.f_into_use_tot.loc[(m, p), c] for c in self.time[:self.time.index(t)]])*(1-self.always_value_m_p_rr(self.in_use_rr, m, p, "In_Use")) for p in self.pertinent_technologies[m])
+                self.diss_in_use.loc[m,t] = sum(self.diss_in_use_products.loc[(m,p),t] for p in self.pertinent_technologies[m])
                 self.diss_coll_sorting.loc[m,t] = sum(self.f_use_sorting.loc[(m,p),t]*(1-self.always_value_m_p_rr(self.coll_sorting_rr, m, p, "Collection_sorting")) for p in self.pertinent_technologies[m])
                 self.f_rec_fab.loc[m,t] = sum(self.f_sorting_rec.loc[(m,p),t]*self.always_value_m_p_rr(self.remelting_rr, m, p, "Remelting") for p in self.pertinent_technologies[m])
                 self.diss_remelting.loc[m,t] = sum(self.f_sorting_rec.loc[(m,p),t]*(1-self.always_value_m_p_rr(self.remelting_rr, m, p, "Remelting")) for p in self.pertinent_technologies[m])
@@ -295,9 +292,9 @@ class WILMFlo_world:
                                                                                         self.diss_coll_sorting.loc[m, t] +
                                                                                         self.diss_remelting.loc[
                                                                                             m, t]) * self.always_value_elem_mat(self.elem_mat, b, m) for m in self.materials)
-            for e in self.elements:
-                self.diss_tailings.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Tailings"]
-                self.diss_waste_rock.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Waste rock"]
+            #for e in self.elements:
+            #   self.diss_tailings.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Tailings"]
+            #    self.diss_waste_rock.loc[e,t] = self.diss_prim_prod.loc[e, t]*self.tailings_waste_rock.loc[e,"Waste rock"]
 
             for e in self.elements:
                 if (self.reserves_level0.loc[e, t - self.ts] >= self.f_ext.loc[e, t]):
@@ -386,8 +383,8 @@ class WILMFlo_world:
             self.reserves_level3.to_excel(writer, sheet_name="reserves_level3")
             self.gap_reserves.to_excel(writer, sheet_name="gap_reserves")
             self.diss_prim_prod.to_excel(writer,sheet_name = "diss_prim_prod")
-            self.diss_tailings.to_excel(writer,sheet_name = "diss_tailings")
-            self.diss_waste_rock.to_excel(writer,sheet_name = "diss_waste_rock")
+            #self.diss_tailings.to_excel(writer,sheet_name = "diss_tailings")
+            #self.diss_waste_rock.to_excel(writer,sheet_name = "diss_waste_rock")
             self.diss_fab.to_excel(writer,sheet_name = "diss_fab")
             self.diss_in_use_products.to_excel(writer,sheet_name = "diss_in_use_products")
             self.diss_in_use.to_excel(writer,sheet_name = "diss_in_use")
@@ -422,6 +419,8 @@ class WILMFlo_world:
 
         self.OF_Array_Products = np.zeros((Nt, Nc, Np))  # density functions, by year, age-cohort, and product.
         self.SF_Array_Products = np.zeros((Nt, Nc, Np))
+
+        self.list_tec_short_lifetime = []
         # PDFs are stored externally because recreating them with scipy.stats is slow.
         # Build pdf array from lifetime distribution: Probability of survival.
         for p in range(0, Np):
@@ -447,6 +446,10 @@ class WILMFlo_world:
                                                          lt=self.lt)
             self.OF_Array_Products[:, :, p] = DSM_MaTrace_Lifetime.compute_outflow_pdf()
             self.SF_Array_Products[:, :, p] = DSM_MaTrace_Lifetime.compute_sf()
+
+            if float(param_list[0]) < 1:
+                self.list_tec_short_lifetime.append(self.products[p])
+        print(self.list_tec_short_lifetime)
 
     def fraction_survival(self,t,c,p):
         pos_t = self.list_time.index(t)
@@ -489,12 +492,30 @@ class WILMFlo_world:
         self.L_prod is obtained using calc_L_matrix_prod function taking as input variable self.tec_tec_prod which data is stored 
         in tabsheet of self.in_file named "Tec_Tec_use_ + self.scenario_demand"
         
-        Temporarily replaced self.scenario_demand by 'SSP2B_SSP2B' for study on Phosphorus
-        And replaced '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/' + 'SSP2B_SSP2B' + '_' + self.scenario_prod + '/L_prod/L_'
-        by '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_'
+        For P study, Replaced :
+        
+        for t in self.time:
+            if self.scenario_prod == "IEA_NZ" and self.scenario_demand != "DLS":
+                self.L_prod[t] = pd.read_excel(
+                    self.path_L_matrices + self.scenario_demand + '_' + "STEPS" + '/L_prod/L_' + str(
+                        t) + '.xlsx',
+                    index_col=0)
+            else:
+                self.L_prod[t] = pd.read_excel(self.path_L_matrices + self.scenario_demand + '_' + self.scenario_prod + '/L_prod/L_' + str(t) + '.xlsx',
+                                                   index_col=0)
+        by:
+        for t in self.time:
+            self.L_prod[t] = pd.read_excel(self.path_L_matrices + '/L_prod/L_' + str(t) + '.xlsx',
+                                                   index_col=0)
+        
         '''
         for t in self.time:
-            self.L_prod[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_' + str(t) + '.xlsx',
+            if self.scenario_prod == "IEA_NZ" and self.scenario_demand == "STEPS":
+                self.L_prod[t] = pd.read_excel(self.path_L_matrices
+                                          + "DLS" + '_' + self.scenario_prod + '/L_prod/L_'
+                                          + str(t) + '.xlsx', index_col=0)
+            else:
+                self.L_prod[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/WILMFlo/L_matrices/' + self.scenario_demand + '_' + self.scenario_prod + '/L_prod/L_' + str(t) + '.xlsx',
                                                    index_col=0)
     def read_L_matrix_with_yearly_use(self):
         self.L_use = {}
@@ -502,14 +523,35 @@ class WILMFlo_world:
         self.L_use is obtained using calc_L_matrix_use function taking as input variable self.tec_tec_use_phase which data is stored 
         in tabsheet of self.in_file named "Tec_Tec_prod"
         
-        Temporarily replaced self.scenario_demand by 'SSP2B_SSP2B' for study on Phosphorus
-        And replaced '/home/gtitouan/projects/def-cecileb/gtitouan/RESEDA/L_matrices/'
-                                          + 'SSP2B_SSP2B' + '_' + self.scenario_prod + '/L_use/L_'
-        by '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_'
+        For P study, Replaced :
+        
+        for t in self.time:
+            if self.scenario_prod == "IEA_NZ" and self.scenario_demand != "DLS":
+                self.L_use[t] = pd.read_excel(self.path_L_matrices+
+                                          + "DLS" + '_' + self.scenario_prod + + '/L_use/L_'
+                                          + str(t) + '.xlsx', index_col=0)
+            else:
+                self.L_use[t] = pd.read_excel(self.path_L_matrices+
+                                              + self.scenario_demand + '_' + self.scenario_prod + '/L_use/L_'
+                                              + str(t) + '.xlsx', index_col=0)
+        
+        by:
+        for t in self.time:
+            self.L_use[t] = pd.read_excel(self.path_L_matrices+ + '/L_use/L_'
+                                          + str(t) + '.xlsx', index_col=0)
         '''
         for t in self.time:
-            self.L_use[t] = pd.read_excel('/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_'
+            if self.scenario_prod == "IEA_NZ" and self.scenario_demand == "STEPS":
+                '''
+                For the Net Zero scenario, L_use is the same as for the DLS IEA NZ scenario
+                '''
+                self.L_use[t] = pd.read_excel(self.path_L_matrices
+                                          + "DLS" + '_' + self.scenario_prod + '/L_use/L_'
                                           + str(t) + '.xlsx', index_col=0)
+            else:
+                self.L_use[t] = pd.read_excel(self.path_L_matrices
+                                              + self.scenario_demand + '_' + self.scenario_prod + '/L_use/L_'
+                                              + str(t) + '.xlsx', index_col=0)
 
     def get_L_matrix_use(self):
         self.L_use_phase = {}
@@ -681,7 +723,7 @@ class WILMFlo_world:
             ## Here we set to 0 all negative values obtained after inversion (calculation residues after inversion)
             self.L_prod[t] = abs(self.L_prod[t].mask(self.L_prod[t] < 0).fillna(0))
             self.L_prod[t].to_excel(
-                '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_prod/L_' + str(
+                self.path_L_matrices + '/L_prod/L_' + str(
                     t) + '.xlsx')
 
     
@@ -705,7 +747,7 @@ class WILMFlo_world:
             ## Here we set to 0 all negative values obtained after inversion (calculation residues after inversion)
             self.L_use[t] = abs(self.L_use[t].mask(self.L_use[t] < 0).fillna(0))
             self.L_use[t].to_excel(
-                '/home/gtitouan/projects/def-cecileb/gtitouan/WILMFLo_P/STEP/' + '/L_use/L_' + str(
+                self.path_L_matrices + '/L_use/L_' + str(
                     t) + '.xlsx')
 
     def solve_scenario(self):
