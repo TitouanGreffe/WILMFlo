@@ -29,6 +29,7 @@ ODYM (https://github.com/IndEcol/ODYM)
 ## Author
 Titouan Greffe (greffe.titouan@uqam.ca)
 
-An article describing the methodology and data collected as well as results will be published soon.
+## Reference
+Greffe, T., Margni, M., & Bulle, C. (2025). Evaluation of metals mining and processing energy consumption and potential metals supply–demand mismatch towards 2100. Resources, Conservation and Recycling, 223, 108482. https://doi.org/10.1016/j.resconrec.2025.108482 
 
 
