@@ -19,7 +19,7 @@ The main WILMFlo 1.0 outputs are the following:
 
 A template to customize your scenario with your own data will be made available soon.
 
-Results are available on Zenodo at :
+Results are available on Zenodo at : https://doi.org/10.5281/zenodo.16375652.
 
 ## Dependencies
 
